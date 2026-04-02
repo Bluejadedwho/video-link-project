@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Video Catalogue</title>
+  <style>
+    body {
+      background: #1a1a1a;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      padding: 20px;
+    }
+    h1 {
+      color: #ffffff;
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+    .meta {
+      color: #888;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      table-layout: fixed;
+    }
+    th {
+      background: #2c2c2c;
+      color: #aaaaaa;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 2px solid #444;
+    }
+    td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #2e2e2e;
+      vertical-align: top;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    tr:hover td {
+      background: #242424;
+    }
+    a {
+      color: #6ab0f5;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    /* Column widths */
+    th:nth-child(1), td:nth-child(1) { width: 80px;  }  /* platform */
+    th:nth-child(2), td:nth-child(2) { width: 28%;   }  /* title */
+    th:nth-child(3), td:nth-child(3) { width: 22%;   }  /* url */
+    th:nth-child(4), td:nth-child(4) { width: 14%;   }  /* uploader */
+    th:nth-child(5), td:nth-child(5) { width: 100px; }  /* timestamp */
+    th:nth-child(6), td:nth-child(6) { width: 120px; }  /* transcript_source */
+  </style>
+</head>
+<body>
+  <h1>Video Catalogue</h1>
+  <p class="meta">5 records &mdash; generated Apr 02 2026</p>
+  <table>
+    <thead>
+      <tr><th>platform</th><th>title</th><th>url</th><th>uploader</th><th>timestamp</th><th>transcript_source</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>YouTube</td><td>How to Build a Local Archive</td><td><a href="https://www.youtube.com/watch?v=example1" target="_blank">www.youtube.com/watch?v=example1</a></td><td>TechChannel</td><td>Mar 15 2024</td><td>auto</td></tr>
+        <tr><td>Vimeo</td><td>Introduction to Python Scripting</td><td><a href="https://vimeo.com/example2" target="_blank">vimeo.com/example2</a></td><td>CodeTutorials</td><td>Nov 02 2023</td><td>manual</td></tr>
+        <tr><td>YouTube</td><td>Mac Tips and Tricks 2024</td><td><a href="https://www.youtube.com/watch?v=example3" target="_blank">www.youtube.com/watch?v=example3</a></td><td>MacPowerUser</td><td>Jan 20 2024</td><td></td></tr>
+        <tr><td>YouTube</td><td>Understanding CSV Files</td><td><a href="https://www.youtube.com/watch?v=example4" target="_blank">www.youtube.com/watch?v=example4</a></td><td>DataBasics</td><td>Jul 08 2022</td><td>auto</td></tr>
+        <tr><td>Vimeo</td><td>Simple HTML for Beginners</td><td><a href="https://vimeo.com/example5" target="_blank">vimeo.com/example5</a></td><td>WebStarterKit</td><td>May 30 2023</td><td>manual</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>
