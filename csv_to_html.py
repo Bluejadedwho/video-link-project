@@ -88,6 +88,8 @@ def main():
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Video Catalogue</title>
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="icon" href="icon.png">
   <style>
     body {{
       background: #111;
@@ -97,7 +99,9 @@ def main():
       padding: 16px;
       margin: 0;
     }}
-    h1 {{ color: #fff; font-size: 20px; margin-bottom: 4px; }}
+    .header {{ display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }}
+    .header img {{ width: 48px; height: 48px; border-radius: 12px; }}
+    h1 {{ color: #fff; font-size: 20px; margin: 0; }}
     .meta {{ color: #666; font-size: 12px; margin-bottom: 12px; }}
 
     #search {{
@@ -180,7 +184,10 @@ def main():
   </style>
 </head>
 <body>
-  <h1>Video Catalogue</h1>
+  <div class="header">
+    <img src="icon.png" alt="icon">
+    <h1>Video Catalogue</h1>
+  </div>
   <p class="meta">{row_count} records &mdash; generated {generated}</p>
   <input id="search" type="text" placeholder="Search titles, uploaders, platforms…" oninput="filterTable()">
   <div id="count"></div>
