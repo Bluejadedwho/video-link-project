@@ -1,147 +1,169 @@
 import csv
-from datetime import datetime
+import html
+import os
 
-INPUT_FILE = "records_summary.csv"
-OUTPUT_FILE = "records_summary.html"
+INPUT_CSV = "records_summary.csv"
+OUTPUT_HTML = "records_summary.html"
 
-# Only these columns will appear in the HTML table, in this order
-VISIBLE_COLUMNS = ["platform", "title", "url", "uploader", "timestamp", "transcript_source"]
 
-def format_timestamp(raw):
-    """Convert ISO timestamp like 2024-03-15T10:30:00 to Mar 15 2024."""
-    if not raw:
-        return ""
-    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
-        try:
-            return datetime.strptime(raw.strip(), fmt).strftime("%b %d %Y")
-        except ValueError:
-            continue
-    return raw  # return as-is if parsing fails
+def is_url(text):
+    if not text:
+        return False
+    text = str(text).strip().lower()
+    return text.startswith("http://") or text.startswith("https://")
 
-def make_link(url):
-    if url and url.startswith("http"):
-        # Shorten display text to just the domain + path start
-        display = url.replace("https://", "").replace("http://", "")
-        if len(display) > 40:
-            display = display[:37] + "..."
-        return f'<a href="{url}" target="_blank">{display}</a>'
-    return url or ""
 
-def load_rows(filepath):
-    rows = []
-    with open(filepath, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            rows.append(row)
-    return rows
+def shorten(text, limit=120):
+    text = "" if text is None else str(text)
+    return text if len(text) <= limit else text[:limit] + "..."
 
-def build_html(rows):
-    row_count = len(rows)
 
-    # Build table rows
-    table_rows = []
-    for row in rows:
-        cells = []
-        for col in VISIBLE_COLUMNS:
-            value = row.get(col, "")
-            if col == "timestamp":
-                value = format_timestamp(value)
-            elif col == "url":
-                value = make_link(value)
-            else:
-                value = value.strip() if value else ""
-            cells.append(f"<td>{value}</td>")
-        table_rows.append("<tr>" + "".join(cells) + "</tr>")
+def format_cell(value, column_name=""):
+    text = "" if value is None else str(value).strip()
+    safe_full = html.escape(text)
+    safe_short = html.escape(shorten(text, 120))
 
-    headers = "".join(f"<th>{col}</th>" for col in VISIBLE_COLUMNS)
-    rows_html = "\n        ".join(table_rows)
+    col = column_name.lower()
 
-    html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Video Catalogue</title>
-  <style>
-    body {{
-      background: #1a1a1a;
-      color: #e0e0e0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 14px;
-      padding: 20px;
-    }}
-    h1 {{
-      color: #ffffff;
-      font-size: 20px;
-      margin-bottom: 4px;
-    }}
-    .meta {{
-      color: #888;
-      font-size: 13px;
-      margin-bottom: 16px;
-    }}
-    table {{
-      border-collapse: collapse;
-      width: 100%;
-      table-layout: fixed;
-    }}
-    th {{
-      background: #2c2c2c;
-      color: #aaaaaa;
-      text-transform: uppercase;
-      font-size: 11px;
-      letter-spacing: 0.05em;
-      padding: 8px 10px;
-      text-align: left;
-      border-bottom: 2px solid #444;
-    }}
-    td {{
-      padding: 8px 10px;
-      border-bottom: 1px solid #2e2e2e;
-      vertical-align: top;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }}
-    tr:hover td {{
-      background: #242424;
-    }}
-    a {{
-      color: #6ab0f5;
-      text-decoration: none;
-    }}
-    a:hover {{
-      text-decoration: underline;
-    }}
-    /* Column widths */
-    th:nth-child(1), td:nth-child(1) {{ width: 80px;  }}  /* platform */
-    th:nth-child(2), td:nth-child(2) {{ width: 28%;   }}  /* title */
-    th:nth-child(3), td:nth-child(3) {{ width: 22%;   }}  /* url */
-    th:nth-child(4), td:nth-child(4) {{ width: 14%;   }}  /* uploader */
-    th:nth-child(5), td:nth-child(5) {{ width: 100px; }}  /* timestamp */
-    th:nth-child(6), td:nth-child(6) {{ width: 120px; }}  /* transcript_source */
-  </style>
-</head>
-<body>
-  <h1>Video Catalogue</h1>
-  <p class="meta">{row_count} records &mdash; generated {datetime.now().strftime("%b %d %Y")}</p>
-  <table>
-    <thead>
-      <tr>{headers}</tr>
-    </thead>
-    <tbody>
-        {rows_html}
-    </tbody>
-  </table>
-</body>
-</html>"""
-    return html
+    # Make URLs clickable
+    if is_url(text):
+        return f'<a href="{safe_full}" target="_blank">{safe_short}</a>'
+
+    # Show image URLs as images if the column suggests an image
+    if "thumbnail" in col or "image" in col:
+        if is_url(text):
+            return f'<a href="{safe_full}" target="_blank"><img src="{safe_full}" alt="thumbnail"></a>'
+
+    return safe_full.replace("\n", "<br>")
+
 
 def main():
-    rows = load_rows(INPUT_FILE)
-    html = build_html(rows)
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        f.write(html)
-    print(f"Done. {len(rows)} records written to {OUTPUT_FILE}")
+    if not os.path.exists(INPUT_CSV):
+        print(f"Missing file: {INPUT_CSV}")
+        return
+
+    with open(INPUT_CSV, "r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        headers = reader.fieldnames or []
+
+    html_parts = []
+
+    html_parts.append("""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Records Summary</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background: #111;
+    color: #eee;
+}
+
+h1 {
+    margin-bottom: 20px;
+}
+
+.table-wrap {
+    overflow-x: auto;
+    border: 1px solid #333;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    min-width: 1400px;
+}
+
+th, td {
+    border: 1px solid #444;
+    padding: 8px;
+    vertical-align: top;
+    text-align: left;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+th {
+    background: #222;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+tr:nth-child(even) {
+    background: #1a1a1a;
+}
+
+tr:nth-child(odd) {
+    background: #151515;
+}
+
+a {
+    color: #66b3ff;
+}
+
+img {
+    max-width: 140px;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+}
+
+.col-platform { width: 90px; }
+.col-title { width: 300px; }
+.col-url { width: 240px; }
+.col-thumbnail_alt { width: 260px; }
+.col-uploader { width: 150px; }
+.col-timestamp { width: 120px; }
+.col-transcript_source { width: 140px; }
+.col-description { width: 260px; }
+
+.small-note {
+    color: #bbb;
+    margin-bottom: 14px;
+    font-size: 13px;
+}
+</style>
+</head>
+<body>
+""")
+
+    html_parts.append(f"<h1>Records Summary</h1>")
+    html_parts.append(f'<div class="small-note">Rows: {len(rows)}</div>')
+    html_parts.append('<div class="table-wrap">')
+    html_parts.append("<table>")
+    html_parts.append("<thead><tr>")
+
+    for header in headers:
+        css_class = f'col-{html.escape(header)}'
+        html_parts.append(f'<th class="{css_class}">{html.escape(header)}</th>')
+
+    html_parts.append("</tr></thead>")
+    html_parts.append("<tbody>")
+
+    for row in rows:
+        html_parts.append("<tr>")
+        for header in headers:
+            css_class = f'col-{html.escape(header)}'
+            cell_html = format_cell(row.get(header, ""), header)
+            html_parts.append(f'<td class="{css_class}">{cell_html}</td>')
+        html_parts.append("</tr>")
+
+    html_parts.append("</tbody></table></div></body></html>")
+
+    with open(OUTPUT_HTML, "w", encoding="utf-8") as f:
+        f.write("".join(html_parts))
+
+    print(f"Created {OUTPUT_HTML}")
+
 
 if __name__ == "__main__":
     main()
