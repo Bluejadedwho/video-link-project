@@ -2,6 +2,7 @@ import csv
 import html
 import os
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 INPUT_CSV = "records_summary.csv"
 OUTPUT_HTML = "records_summary.html"
@@ -28,8 +29,9 @@ def make_link(url, title):
 
 def make_thumb(path):
     path = path.strip() if path else ""
-    if path and os.path.exists(path):
-        return f'<img src="{html.escape(path)}" alt="" loading="lazy">'
+    if path:
+        encoded = quote(path, safe="/")
+        return f'<img src="{encoded}" alt="" loading="lazy">'
     return ""
 
 
