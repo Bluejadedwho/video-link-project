@@ -99,32 +99,30 @@ def main():
       padding: 16px;
       margin: 0;
     }}
-    .header {{ display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }}
-    .header img {{ width: 48px; height: 48px; border-radius: 12px; }}
-    h1 {{ color: #fff; font-size: 20px; margin: 0; }}
-    .meta {{ color: #666; font-size: 12px; margin-bottom: 12px; }}
-
+    .header {{ display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 4px; }}
+    .header img {{ width: 72px; height: 72px; border-radius: 16px; }}
+    h1 {{ color: #fff; font-size: 26px; margin: 0; }}
+    .meta {{ color: #666; font-size: 12px; margin-bottom: 12px; text-align: center; }}
     #search {{
       width: 100%;
-      max-width: 420px;
-      padding: 8px 12px;
+      max-width: 100%;
+      padding: 10px 14px;
       margin-bottom: 14px;
       background: #1e1e1e;
       border: 1px solid #333;
       border-radius: 6px;
       color: #e0e0e0;
-      font-size: 14px;
+      font-size: 15px;
       box-sizing: border-box;
     }}
     #search::placeholder {{ color: #555; }}
     #search:focus {{ outline: none; border-color: #555; }}
 
-    .wrap {{ overflow-x: auto; }}
+    .wrap {{ overflow-x: auto; -webkit-overflow-scrolling: touch; }}
     table {{
       border-collapse: collapse;
       width: 100%;
-      table-layout: fixed;
-      min-width: 800px;
+      table-layout: auto;
     }}
     th {{
       background: #1a1a1a;
@@ -148,12 +146,17 @@ def main():
     a {{ color: #5aadff; text-decoration: none; }}
     a:hover {{ text-decoration: underline; }}
 
-    .col-thumb    {{ width: 80px; text-align: center; }}
-    .col-platform {{ width: 75px; }}
-    .col-title    {{ width: 35%; }}
-    .col-uploader {{ width: 14%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-    .col-timestamp{{ width: 90px; }}
-    .col-tsrc     {{ width: 100px; }}
+    .col-thumb    {{ width: 70px; text-align: center; }}
+    .col-platform {{ width: 80px; }}
+    .col-title    {{ }}
+    .col-uploader {{ width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+
+    @media (max-width: 600px) {{
+      .col-platform {{ display: none; }}
+      .col-uploader {{ display: none; }}
+      th.col-platform {{ display: none; }}
+      th.col-uploader {{ display: none; }}
+    }}
 
     .col-title td, td.col-title {{
       overflow: hidden;
