@@ -6,12 +6,10 @@ from datetime import datetime, timezone
 INPUT_CSV = "records_summary.csv"
 OUTPUT_HTML = "records_summary.html"
 
-# Only these columns will be shown, in this order
-VISIBLE_COLUMNS = ["platform", "title", "url", "uploader", "timestamp", "transcript_source"]
+VISIBLE_COLUMNS = ["thumbnail_file", "platform", "title", "uploader", "timestamp", "transcript_source"]
 
 
 def format_timestamp(raw):
-    """Convert Unix timestamp (seconds) to readable date like Apr 03 2026."""
     if not raw:
         return ""
     try:
@@ -21,15 +19,18 @@ def format_timestamp(raw):
         return raw
 
 
-def make_link(url):
-    """Turn a URL into a clickable link with shortened display text."""
+def make_link(url, title):
     url = url.strip() if url else ""
     if not url.startswith("http"):
-        return html.escape(url)
-    display = url.replace("https://", "").replace("http://", "")
-    if len(display) > 45:
-        display = display[:42] + "..."
-    return f'<a href="{html.escape(url)}" target="_blank">{html.escape(display)}</a>'
+        return html.escape(title)
+    return f'<a href="{html.escape(url)}" target="_blank">{html.escape(title)}</a>'
+
+
+def make_thumb(path):
+    path = path.strip() if path else ""
+    if path and os.path.exists(path):
+        return f'<img src="{html.escape(path)}" alt="" loading="lazy">'
+    return ""
 
 
 def main():
@@ -46,27 +47,40 @@ def main():
 
     table_rows = []
     for row in rows:
-        cells = []
-        for col in VISIBLE_COLUMNS:
-            value = row.get(col, "") or ""
-            if col == "timestamp":
-                cell = html.escape(format_timestamp(value))
-            elif col == "url":
-                cell = make_link(value)
-            else:
-                cell = html.escape(value.strip())
-            cells.append(f'<td class="col-{col}">{cell}</td>')
+        title     = (row.get("title", "") or "").strip()
+        url       = (row.get("url", "") or "").strip()
+        platform  = (row.get("platform", "") or "").strip()
+        uploader  = (row.get("uploader", "") or "").strip()
+        ts        = (row.get("timestamp", "") or "").strip()
+        tsrc      = (row.get("transcript_source", "") or "").strip()
+        thumb     = (row.get("thumbnail_file", "") or "").strip()
+        desc      = (row.get("description_preview", "") or "").strip()
+
+        # Shorten title for display (strip view counts prefix for Facebook)
+        display_title = title
+        if " | " in title:
+            parts = title.split(" | ")
+            display_title = " | ".join(parts[1:]) if len(parts) > 1 else title
+
+        cells = [
+            f'<td class="col-thumb">{make_thumb(thumb)}</td>',
+            f'<td class="col-platform">{html.escape(platform)}</td>',
+            f'<td class="col-title">{make_link(url, display_title)}'
+            + (f'<div class="desc">{html.escape(desc[:120])}{"…" if len(desc)>120 else ""}</div>' if desc else "")
+            + '</td>',
+            f'<td class="col-uploader">{html.escape(uploader)}</td>',
+            f'<td class="col-timestamp">{html.escape(format_timestamp(ts))}</td>',
+            f'<td class="col-tsrc">{html.escape(tsrc)}</td>',
+        ]
         table_rows.append("<tr>" + "".join(cells) + "</tr>")
 
-    headers_html = "".join(
-        f'<th class="col-{col}">{col}</th>' for col in VISIBLE_COLUMNS
-    )
     rows_html = "\n    ".join(table_rows)
 
     page = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Video Catalogue</title>
   <style>
     body {{
@@ -74,76 +88,129 @@ def main():
       color: #e0e0e0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 13px;
-      padding: 20px;
+      padding: 16px;
+      margin: 0;
     }}
-    h1 {{
-      color: #fff;
-      font-size: 20px;
-      margin-bottom: 4px;
+    h1 {{ color: #fff; font-size: 20px; margin-bottom: 4px; }}
+    .meta {{ color: #666; font-size: 12px; margin-bottom: 12px; }}
+
+    #search {{
+      width: 100%;
+      max-width: 420px;
+      padding: 8px 12px;
+      margin-bottom: 14px;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 14px;
+      box-sizing: border-box;
     }}
-    .meta {{
-      color: #777;
-      font-size: 12px;
-      margin-bottom: 16px;
-    }}
-    .wrap {{
-      overflow-x: auto;
-    }}
+    #search::placeholder {{ color: #555; }}
+    #search:focus {{ outline: none; border-color: #555; }}
+
+    .wrap {{ overflow-x: auto; }}
     table {{
       border-collapse: collapse;
       width: 100%;
       table-layout: fixed;
-      min-width: 900px;
+      min-width: 800px;
     }}
     th {{
-      background: #1e1e1e;
-      color: #aaa;
+      background: #1a1a1a;
+      color: #888;
       text-transform: uppercase;
       font-size: 11px;
       letter-spacing: 0.05em;
       padding: 8px 10px;
       text-align: left;
-      border-bottom: 2px solid #333;
+      border-bottom: 2px solid #2a2a2a;
       position: sticky;
       top: 0;
+      z-index: 1;
     }}
     td {{
-      padding: 7px 10px;
-      border-bottom: 1px solid #222;
-      vertical-align: top;
+      padding: 6px 10px;
+      border-bottom: 1px solid #1e1e1e;
+      vertical-align: middle;
+    }}
+    tr:hover td {{ background: #181818; }}
+    a {{ color: #5aadff; text-decoration: none; }}
+    a:hover {{ text-decoration: underline; }}
+
+    .col-thumb    {{ width: 80px; text-align: center; }}
+    .col-platform {{ width: 75px; }}
+    .col-title    {{ width: 35%; }}
+    .col-uploader {{ width: 14%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+    .col-timestamp{{ width: 90px; }}
+    .col-tsrc     {{ width: 100px; }}
+
+    .col-title td, td.col-title {{
+      overflow: hidden;
+    }}
+    td.col-title a {{
+      display: block;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }}
-    tr:hover td {{
-      background: #1a1a1a;
+    .desc {{
+      color: #666;
+      font-size: 11px;
+      margin-top: 3px;
+      line-height: 1.3;
+      white-space: normal;
     }}
-    a {{
-      color: #5aadff;
-      text-decoration: none;
+    img {{
+      width: 72px;
+      height: 48px;
+      object-fit: cover;
+      border-radius: 3px;
+      display: block;
+      margin: auto;
     }}
-    a:hover {{ text-decoration: underline; }}
-
-    /* Column widths */
-    .col-platform         {{ width: 80px; }}
-    .col-title            {{ width: 30%; }}
-    .col-url              {{ width: 22%; }}
-    .col-uploader         {{ width: 15%; }}
-    .col-timestamp        {{ width: 90px; }}
-    .col-transcript_source{{ width: 110px; }}
+    .hidden {{ display: none; }}
+    #count {{ color: #555; font-size: 12px; margin-bottom: 8px; }}
   </style>
 </head>
 <body>
   <h1>Video Catalogue</h1>
   <p class="meta">{row_count} records &mdash; generated {generated}</p>
+  <input id="search" type="text" placeholder="Search titles, uploaders, platforms…" oninput="filterTable()">
+  <div id="count"></div>
   <div class="wrap">
-    <table>
-      <thead><tr>{headers_html}</tr></thead>
+    <table id="catalogue">
+      <thead>
+        <tr>
+          <th class="col-thumb"></th>
+          <th class="col-platform">Platform</th>
+          <th class="col-title">Title</th>
+          <th class="col-uploader">Uploader</th>
+          <th class="col-timestamp">Date</th>
+          <th class="col-tsrc">Transcript</th>
+        </tr>
+      </thead>
       <tbody>
     {rows_html}
       </tbody>
     </table>
   </div>
+
+  <script>
+    function filterTable() {{
+      const q = document.getElementById('search').value.toLowerCase();
+      const rows = document.querySelectorAll('#catalogue tbody tr');
+      let visible = 0;
+      rows.forEach(row => {{
+        const match = row.textContent.toLowerCase().includes(q);
+        row.classList.toggle('hidden', !match);
+        if (match) visible++;
+      }});
+      const total = rows.length;
+      document.getElementById('count').textContent =
+        q ? visible + ' of ' + total + ' matching' : '';
+    }}
+  </script>
 </body>
 </html>"""
 

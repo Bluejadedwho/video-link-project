@@ -1,0 +1,3 @@
+🧮
+
+Kaprekar's constant is the number 6174, a four-digit number that emerges when you repeatedly apply a specific process: take any four-digit number (with at least two different digits), rearrange its digits to form the largest and smallest possible numbers, and subtract the smaller from the larger, always ensuring four digits (using leading zeros if needed). This "Kaprekar's routine" always converges to 6174 within seven iterations, after which the process yields 6174 indefinitely (e.g., 7641 - 1467 = 6174).
