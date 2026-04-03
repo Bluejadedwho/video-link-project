@@ -55,32 +55,31 @@ def main():
 
     table_rows = []
     for row in rows:
-        title     = (row.get("title", "") or "").strip()
-        url       = (row.get("url", "") or "").strip()
-        platform  = (row.get("platform", "") or "").strip()
-        uploader  = (row.get("uploader", "") or "").strip()
-        ts        = (row.get("timestamp", "") or "").strip()
-        tsrc      = (row.get("transcript_source", "") or "").strip()
-        thumb     = (row.get("thumbnail_file", "") or "").strip()
-        desc      = (row.get("description_preview", "") or "").strip()
+        title    = (row.get("title", "") or "").strip()
+        url      = (row.get("url", "") or "").strip()
+        uploader = (row.get("uploader", "") or "").strip()
+        thumb    = (row.get("thumbnail_file", "") or "").strip()
+        desc     = (row.get("description_preview", "") or "").strip()
 
-        # Shorten title for display (strip view counts prefix for Facebook)
+        # Strip view count prefix from Facebook titles
         display_title = title
         if " | " in title:
             parts = title.split(" | ")
             display_title = " | ".join(parts[1:]) if len(parts) > 1 else title
 
-        cells = [
-            f'<td class="col-thumb">{make_thumb(thumb)}</td>',
-            f'<td class="col-platform">{html.escape(platform)}</td>',
-            f'<td class="col-title">{make_link(url, display_title)}'
-            + (f'<div class="desc">{html.escape(desc[:120])}{"…" if len(desc)>120 else ""}</div>' if desc else "")
-            + '</td>',
-            f'<td class="col-uploader">{html.escape(uploader)}</td>',
-        ]
-        table_rows.append("<tr>" + "".join(cells) + "</tr>")
+        thumb_html = make_thumb(thumb)
+        link = make_link(url, display_title)
+        desc_html = f'<div class="desc">{html.escape(desc)}</div>' if desc else ""
+        uploader_html = f'<div class="uploader">{html.escape(uploader)}</div>' if uploader else ""
 
-    rows_html = "\n    ".join(table_rows)
+        table_rows.append(
+            f'<div class="card" data-search="{html.escape((display_title + " " + uploader + " " + desc).lower())}">'
+            f'<div class="thumb">{thumb_html}</div>'
+            f'<div class="info">{link}{uploader_html}{desc_html}</div>'
+            f'</div>'
+        )
+
+    rows_html = "\n".join(table_rows)
 
     page = f"""<!DOCTYPE html>
 <html lang="en">
@@ -95,7 +94,7 @@ def main():
       background: #111;
       color: #e0e0e0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 13px;
+      font-size: 14px;
       padding: 16px;
       margin: 0;
     }}
@@ -105,9 +104,8 @@ def main():
     .meta {{ color: #666; font-size: 12px; margin-bottom: 12px; text-align: center; }}
     #search {{
       width: 100%;
-      max-width: 100%;
       padding: 10px 14px;
-      margin-bottom: 14px;
+      margin-bottom: 8px;
       background: #1e1e1e;
       border: 1px solid #333;
       border-radius: 6px;
@@ -117,73 +115,23 @@ def main():
     }}
     #search::placeholder {{ color: #555; }}
     #search:focus {{ outline: none; border-color: #555; }}
-
-    .wrap {{ overflow-x: auto; -webkit-overflow-scrolling: touch; }}
-    table {{
-      border-collapse: collapse;
-      width: 100%;
-      table-layout: auto;
+    #count {{ color: #555; font-size: 12px; margin-bottom: 10px; }}
+    .card {{
+      display: flex;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #222;
+      align-items: flex-start;
     }}
-    th {{
-      background: #1a1a1a;
-      color: #888;
-      text-transform: uppercase;
-      font-size: 11px;
-      letter-spacing: 0.05em;
-      padding: 8px 10px;
-      text-align: left;
-      border-bottom: 2px solid #2a2a2a;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }}
-    td {{
-      padding: 6px 10px;
-      border-bottom: 1px solid #1e1e1e;
-      vertical-align: middle;
-    }}
-    tr:hover td {{ background: #181818; }}
-    a {{ color: #5aadff; text-decoration: none; }}
-    a:hover {{ text-decoration: underline; }}
-
-    .col-thumb    {{ width: 70px; text-align: center; }}
-    .col-platform {{ width: 80px; }}
-    .col-title    {{ }}
-    .col-uploader {{ width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-
-    @media (max-width: 600px) {{
-      .col-platform {{ display: none; }}
-      .col-uploader {{ display: none; }}
-      th.col-platform {{ display: none; }}
-      th.col-uploader {{ display: none; }}
-    }}
-
-    .col-title td, td.col-title {{
-      overflow: hidden;
-    }}
-    td.col-title a {{
-      display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }}
-    .desc {{
-      color: #666;
-      font-size: 11px;
-      margin-top: 3px;
-      line-height: 1.3;
-      white-space: normal;
-    }}
-    img {{
-      width: 72px;
-      height: 48px;
-      object-fit: cover;
-      border-radius: 3px;
-      display: block;
-      margin: auto;
-    }}
+    .card:hover {{ background: #161616; }}
+    .thumb {{ flex-shrink: 0; width: 90px; }}
+    .thumb img {{ width: 90px; height: 60px; object-fit: cover; border-radius: 4px; display: block; }}
+    .info {{ flex: 1; min-width: 0; }}
+    .info a {{ color: #5aadff; text-decoration: none; font-size: 14px; font-weight: 500; line-height: 1.3; display: block; }}
+    .info a:hover {{ text-decoration: underline; }}
+    .uploader {{ color: #888; font-size: 12px; margin-top: 2px; }}
+    .desc {{ color: #666; font-size: 12px; margin-top: 4px; line-height: 1.4; }}
     .hidden {{ display: none; }}
-    #count {{ color: #555; font-size: 12px; margin-bottom: 8px; }}
   </style>
 </head>
 <body>
@@ -194,20 +142,8 @@ def main():
   <p class="meta">{row_count} records &mdash; generated {generated}</p>
   <input id="search" type="text" placeholder="Search titles, uploaders, platforms…" oninput="filterTable()">
   <div id="count"></div>
-  <div class="wrap">
-    <table id="catalogue">
-      <thead>
-        <tr>
-          <th class="col-thumb"></th>
-          <th class="col-platform">Platform</th>
-          <th class="col-title">Title</th>
-          <th class="col-uploader">Uploader</th>
-        </tr>
-      </thead>
-      <tbody>
-    {rows_html}
-      </tbody>
-    </table>
+  <div id="catalogue">
+{rows_html}
   </div>
 
   <script>
@@ -215,14 +151,15 @@ def main():
       const q = document.getElementById('search').value.toLowerCase();
       const rows = document.querySelectorAll('#catalogue tbody tr');
       let visible = 0;
-      rows.forEach(row => {{
-        const match = row.textContent.toLowerCase().includes(q);
-        row.classList.toggle('hidden', !match);
+      const cards = document.querySelectorAll('#catalogue .card');
+      let visible = 0;
+      cards.forEach(card => {{
+        const match = card.dataset.search.includes(q);
+        card.classList.toggle('hidden', !match);
         if (match) visible++;
       }});
-      const total = rows.length;
       document.getElementById('count').textContent =
-        q ? visible + ' of ' + total + ' matching' : '';
+        q ? visible + ' of ' + cards.length + ' matching' : '';
     }}
   </script>
 </body>
