@@ -7,7 +7,7 @@ from urllib.parse import quote
 INPUT_CSV = "records_summary.csv"
 OUTPUT_HTML = "records_summary.html"
 
-VISIBLE_COLUMNS = ["thumbnail_file", "platform", "title", "uploader", "timestamp", "transcript_source"]
+VISIBLE_COLUMNS = ["thumbnail_file", "platform", "title", "uploader"]
 
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/Bluejadedwho/video-link-project/master/raw/"
 
@@ -77,8 +77,6 @@ def main():
             + (f'<div class="desc">{html.escape(desc[:120])}{"…" if len(desc)>120 else ""}</div>' if desc else "")
             + '</td>',
             f'<td class="col-uploader">{html.escape(uploader)}</td>',
-            f'<td class="col-timestamp">{html.escape(format_timestamp(ts))}</td>',
-            f'<td class="col-tsrc">{html.escape(tsrc)}</td>',
         ]
         table_rows.append("<tr>" + "".join(cells) + "</tr>")
 
@@ -194,8 +192,6 @@ def main():
           <th class="col-platform">Platform</th>
           <th class="col-title">Title</th>
           <th class="col-uploader">Uploader</th>
-          <th class="col-timestamp">Date</th>
-          <th class="col-tsrc">Transcript</th>
         </tr>
       </thead>
       <tbody>
