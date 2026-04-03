@@ -7,7 +7,9 @@ from urllib.parse import quote
 INPUT_CSV = "records_summary.csv"
 OUTPUT_HTML = "records_summary.html"
 
-VISIBLE_COLUMNS = ["platform", "title", "uploader", "timestamp", "transcript_source"]
+VISIBLE_COLUMNS = ["thumbnail_file", "platform", "title", "uploader", "timestamp", "transcript_source"]
+
+GITHUB_RAW_BASE = "https://raw.githubusercontent.com/Bluejadedwho/video-link-project/master/raw/"
 
 
 def format_timestamp(raw):
@@ -28,6 +30,14 @@ def make_link(url, title):
 
 
 def make_thumb(path):
+    import re
+    path = path.strip() if path else ""
+    if not path:
+        return ""
+    m = re.search(r'(\w+)\.jpg$', path)
+    if m:
+        url = GITHUB_RAW_BASE + m.group(1) + ".jpg"
+        return f'<img src="{url}" alt="" loading="lazy">'
     return ""
 
 
@@ -61,6 +71,7 @@ def main():
             display_title = " | ".join(parts[1:]) if len(parts) > 1 else title
 
         cells = [
+            f'<td class="col-thumb">{make_thumb(thumb)}</td>',
             f'<td class="col-platform">{html.escape(platform)}</td>',
             f'<td class="col-title">{make_link(url, display_title)}'
             + (f'<div class="desc">{html.escape(desc[:120])}{"…" if len(desc)>120 else ""}</div>' if desc else "")
@@ -179,6 +190,7 @@ def main():
     <table id="catalogue">
       <thead>
         <tr>
+          <th class="col-thumb"></th>
           <th class="col-platform">Platform</th>
           <th class="col-title">Title</th>
           <th class="col-uploader">Uploader</th>
