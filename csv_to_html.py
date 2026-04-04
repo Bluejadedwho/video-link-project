@@ -149,8 +149,6 @@ def main():
   <script>
     function filterTable() {{
       const q = document.getElementById('search').value.toLowerCase();
-      const rows = document.querySelectorAll('#catalogue tbody tr');
-      let visible = 0;
       const cards = document.querySelectorAll('#catalogue .card');
       let visible = 0;
       cards.forEach(card => {{

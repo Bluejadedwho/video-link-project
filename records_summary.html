@@ -56,7 +56,7 @@
     <img src="icon.png" alt="icon">
     <h1>Video Catalogue</h1>
   </div>
-  <p class="meta">119 records &mdash; generated Apr 03 2026</p>
+  <p class="meta">119 records &mdash; generated Apr 04 2026</p>
   <input id="search" type="text" placeholder="Search titles, uploaders, platforms…" oninput="filterTable()">
   <div id="count"></div>
   <div id="catalogue">
@@ -558,8 +558,6 @@ Dolores Cannon spent decades speaking directly with the Higher Self through thou
   <script>
     function filterTable() {
       const q = document.getElementById('search').value.toLowerCase();
-      const rows = document.querySelectorAll('#catalogue tbody tr');
-      let visible = 0;
       const cards = document.querySelectorAll('#catalogue .card');
       let visible = 0;
       cards.forEach(card => {
