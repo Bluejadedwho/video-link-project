@@ -68,11 +68,13 @@ def main():
             failed.append(url)
             print(f"  FAILED: {url}")
 
+    # Clear new_links.txt so failed links don't pile up on next run
+    NEW_LINKS_FILE.write_text("")
+
     if failed:
-        print(f"\n  {len(failed)} link(s) could not be downloaded:")
+        print(f"\n  {len(failed)} link(s) could not be downloaded (skipped):")
         for u in failed:
             print(f"    {u}")
-        print("  (Facebook share links need you logged into Facebook in Safari first)")
 
     print("\nStep 2: Building records from downloaded files...")
     run(["python3", "build_records.py"])
@@ -89,13 +91,23 @@ def main():
     # Now push the deployable files to the claude branch (no raw/ folder)
     print(f"\nStep 5: Pushing to deploy branch for Netlify...")
     run(["git", "fetch", "origin", DEPLOY_BRANCH])
-    run(["git", "checkout", DEPLOY_BRANCH])
+    # Stash any uncommitted changes so we can switch branches
+    run(["git", "stash"])
+    # Create local branch if it doesn't exist yet
+    check = run(["git", "show-ref", "--verify", f"refs/heads/{DEPLOY_BRANCH}"], capture=True)
+    if check.returncode != 0:
+        run(["git", "checkout", "-b", DEPLOY_BRANCH, f"origin/{DEPLOY_BRANCH}"])
+    else:
+        run(["git", "checkout", DEPLOY_BRANCH])
+        run(["git", "pull", "origin", DEPLOY_BRANCH])
     run(["git", "checkout", current_branch, "--",
          "records.json", "records_summary.csv", "records_summary.html"])
     run(["git", "add", "records.json", "records_summary.csv", "records_summary.html"])
     run(["git", "commit", "-m", "Deploy updated catalogue"])
     run(["git", "push", "-u", "origin", DEPLOY_BRANCH])
     run(["git", "checkout", current_branch])
+    # Restore any stashed changes
+    run(["git", "stash", "pop"])
 
     print("\nAll done! Your catalogue will update on your phone in ~30 seconds.")
     print("Open: https://video-links-project.netlify.app/records_summary.html")
