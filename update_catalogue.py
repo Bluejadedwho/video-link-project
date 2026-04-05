@@ -20,7 +20,7 @@ def download_link(url):
     is_facebook = "facebook.com" in url or "fb.watch" in url
 
     base_cmd = [
-        "yt-dlp",
+        sys.executable, "-m", "yt_dlp",
         "-o", "raw/%(id)s.%(ext)s",
         "--write-info-json",
         "--write-thumbnail",
