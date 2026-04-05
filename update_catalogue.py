@@ -68,11 +68,13 @@ def main():
             failed.append(url)
             print(f"  FAILED: {url}")
 
+    # Clear new_links.txt so failed links don't pile up on next run
+    NEW_LINKS_FILE.write_text("")
+
     if failed:
-        print(f"\n  {len(failed)} link(s) could not be downloaded:")
+        print(f"\n  {len(failed)} link(s) could not be downloaded (skipped):")
         for u in failed:
             print(f"    {u}")
-        print("  (Facebook share links need you logged into Facebook in Safari first)")
 
     print("\nStep 2: Building records from downloaded files...")
     run(["python3", "build_records.py"])
