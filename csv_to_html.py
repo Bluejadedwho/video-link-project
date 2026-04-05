@@ -34,7 +34,11 @@ def make_thumb(path):
     path = path.strip() if path else ""
     if not path:
         return ""
-    m = re.search(r'(\w+)\.jpg$', path)
+    # Try to extract ID from bracket format: [1580908823328389].jpg
+    m = re.search(r'\[([A-Za-z0-9_\-]+)\]\.jpg$', path)
+    if not m:
+        # Fall back to plain ID format: 1580908823328389.jpg
+        m = re.search(r'([A-Za-z0-9_\-]+)\.jpg$', path)
     if m:
         url = GITHUB_RAW_BASE + m.group(1) + ".jpg"
         return f'<img src="{url}" alt="" loading="lazy">'
