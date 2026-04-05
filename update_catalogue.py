@@ -89,7 +89,12 @@ def main():
     # Now push the deployable files to the claude branch (no raw/ folder)
     print(f"\nStep 5: Pushing to deploy branch for Netlify...")
     run(["git", "fetch", "origin", DEPLOY_BRANCH])
-    run(["git", "checkout", DEPLOY_BRANCH])
+    # Create local branch if it doesn't exist yet
+    check = run(["git", "show-ref", "--verify", f"refs/heads/{DEPLOY_BRANCH}"], capture=True)
+    if check.returncode != 0:
+        run(["git", "checkout", "-b", DEPLOY_BRANCH, f"origin/{DEPLOY_BRANCH}"])
+    else:
+        run(["git", "checkout", DEPLOY_BRANCH])
     run(["git", "checkout", current_branch, "--",
          "records.json", "records_summary.csv", "records_summary.html"])
     run(["git", "add", "records.json", "records_summary.csv", "records_summary.html"])
