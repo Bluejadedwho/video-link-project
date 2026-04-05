@@ -50,6 +50,14 @@ def main():
         reader = csv.DictReader(f)
         rows = list(reader)
 
+    # Sort newest first by timestamp
+    def sort_key(r):
+        try:
+            return int(float(r.get("timestamp", "") or 0))
+        except ValueError:
+            return 0
+    rows.sort(key=sort_key, reverse=True)
+
     row_count = len(rows)
     generated = datetime.now().strftime("%b %d %Y")
 
@@ -97,6 +105,8 @@ def main():
       font-size: 14px;
       padding: 16px;
       margin: 0;
+      overflow-x: hidden;
+      word-break: break-word;
     }}
     .header {{ display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 4px; }}
     .header img {{ width: 72px; height: 72px; border-radius: 16px; }}
