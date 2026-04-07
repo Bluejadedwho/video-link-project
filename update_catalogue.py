@@ -26,6 +26,20 @@ def run(cmd, capture=False, check=True, **kwargs):
     return result
 
 
+def tracked_changes_excluding(paths_to_ignore=None):
+    paths_to_ignore = set(paths_to_ignore or [])
+    result = run(["git", "status", "--porcelain", "--untracked-files=no"], capture=True, check=False)
+    bad = []
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        path = line[3:].strip()
+        if path in paths_to_ignore:
+            continue
+        bad.append(line)
+    return bad
+
+
 def has_changes(paths=None):
     cmd = ["git", "status", "--porcelain"]
     if paths:
@@ -83,11 +97,12 @@ def main():
         print("new_links.txt is empty. Nothing to do.")
         sys.exit(0)
 
-    # Require a clean working tree before we start, except for the files we are about to regenerate.
-    dirty = run(["git", "status", "--porcelain"], capture=True, check=False).stdout.strip()
+    # Allow new_links.txt to be the only tracked change before we start.
+    dirty = tracked_changes_excluding({str(NEW_LINKS_FILE)})
     if dirty:
-        print("Your git working tree is not clean. Commit or stash your existing changes first, then rerun.")
-        print(dirty)
+        print("Your git working tree has tracked changes besides new_links.txt. Commit or stash them first, then rerun.")
+        for line in dirty:
+            print(line)
         sys.exit(1)
 
     result = run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True)
@@ -118,7 +133,7 @@ def main():
     print("\nStep 4: Saving data to current branch...")
     changed_current = commit_if_needed(
         "Add new videos to catalogue",
-        ["raw/", "records.json", "records_summary.csv", "records_summary.html"],
+        ["new_links.txt", "raw/", "records.json", "records_summary.csv", "records_summary.html"],
     )
     if changed_current:
         run(["git", "push", "-u", "origin", current_branch])
@@ -126,7 +141,6 @@ def main():
     print("\nStep 5: Pushing deployable files to Netlify branch...")
     run(["git", "fetch", "origin", DEPLOY_BRANCH])
 
-    # Switch cleanly and force local deploy branch to match remote before copying generated files in.
     check = run(["git", "show-ref", "--verify", f"refs/heads/{DEPLOY_BRANCH}"], capture=True, check=False)
     if check.returncode != 0:
         run(["git", "checkout", "-b", DEPLOY_BRANCH, f"origin/{DEPLOY_BRANCH}"])
