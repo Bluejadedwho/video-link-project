@@ -16,12 +16,15 @@ def run(cmd, capture=False, check=True, **kwargs):
     result = subprocess.run(
         cmd,
         capture_output=capture,
-        text=capture,
+        text=True if capture else False,
         **kwargs,
     )
     if check and result.returncode != 0:
-        if capture and result.stderr:
-            print(result.stderr.strip())
+        if capture:
+            if result.stdout:
+                print(result.stdout.strip())
+            if result.stderr:
+                print(result.stderr.strip())
         raise subprocess.CalledProcessError(result.returncode, cmd)
     return result
 
@@ -48,9 +51,10 @@ def has_changes(paths=None):
     return bool(result.stdout.strip())
 
 
-def commit_if_needed(message, paths):
-    if has_changes(paths):
-        run(["git", "add", *paths])
+def commit_if_needed(message, add_cmds, watch_paths):
+    if has_changes(watch_paths):
+        for cmd in add_cmds:
+            run(cmd)
         run(["git", "commit", "-m", message])
         return True
     print("  No changes to commit.")
@@ -87,6 +91,18 @@ def download_link(url):
     return ok
 
 
+def ensure_raw_not_ignored():
+    gi = Path('.gitignore')
+    if not gi.exists():
+        return
+    text = gi.read_text(encoding='utf-8', errors='ignore')
+    lines = text.splitlines()
+    cleaned = [line for line in lines if line.strip() != 'raw/']
+    if cleaned != lines:
+        gi.write_text('\n'.join(cleaned).rstrip() + ('\n' if cleaned else ''), encoding='utf-8')
+        print('  Removed raw/ from .gitignore so new thumbnails and metadata can be committed.')
+
+
 def main():
     if not NEW_LINKS_FILE.exists():
         print("No new_links.txt found. Run check_new_links.py first.")
@@ -97,7 +113,6 @@ def main():
         print("new_links.txt is empty. Nothing to do.")
         sys.exit(0)
 
-    # Allow new_links.txt to be the only tracked change before we start.
     dirty = tracked_changes_excluding({str(NEW_LINKS_FILE)})
     if dirty:
         print("Your git working tree has tracked changes besides new_links.txt. Commit or stash them first, then rerun.")
@@ -118,6 +133,7 @@ def main():
             print(f"  FAILED: {url}")
 
     NEW_LINKS_FILE.write_text("")
+    ensure_raw_not_ignored()
 
     if failed:
         print(f"\n  {len(failed)} link(s) could not be downloaded (skipped):")
@@ -133,7 +149,11 @@ def main():
     print("\nStep 4: Saving data to current branch...")
     changed_current = commit_if_needed(
         "Add new videos to catalogue",
-        ["new_links.txt", "raw/", "records.json", "records_summary.csv", "records_summary.html"],
+        [
+            ["git", "add", ".gitignore", "new_links.txt", "records.json", "records_summary.csv", "records_summary.html"],
+            ["git", "add", "-f", "raw/"],
+        ],
+        [".gitignore", "new_links.txt", "raw/", "records.json", "records_summary.csv", "records_summary.html"],
     )
     if changed_current:
         run(["git", "push", "-u", "origin", current_branch])
@@ -155,6 +175,7 @@ def main():
 
     changed_deploy = commit_if_needed(
         "Deploy updated catalogue",
+        [["git", "add", "records.json", "records_summary.csv", "records_summary.html"]],
         ["records.json", "records_summary.csv", "records_summary.html"],
     )
     if changed_deploy:
