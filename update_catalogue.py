@@ -10,11 +10,38 @@ NEW_LINKS_FILE = Path("new_links.txt")
 RAW_DIR = Path("raw")
 DEPLOY_BRANCH = "claude/video-catalogue-v1-ZJvHx"
 
-def run(cmd, capture=False, **kwargs):
+
+def run(cmd, capture=False, check=True, **kwargs):
     print(f"  $ {' '.join(str(c) for c in cmd)}")
-    if capture:
-        return subprocess.run(cmd, capture_output=True, text=True, **kwargs)
-    return subprocess.run(cmd, **kwargs)
+    result = subprocess.run(
+        cmd,
+        capture_output=capture,
+        text=capture,
+        **kwargs,
+    )
+    if check and result.returncode != 0:
+        if capture and result.stderr:
+            print(result.stderr.strip())
+        raise subprocess.CalledProcessError(result.returncode, cmd)
+    return result
+
+
+def has_changes(paths=None):
+    cmd = ["git", "status", "--porcelain"]
+    if paths:
+        cmd.extend(paths)
+    result = run(cmd, capture=True, check=False)
+    return bool(result.stdout.strip())
+
+
+def commit_if_needed(message, paths):
+    if has_changes(paths):
+        run(["git", "add", *paths])
+        run(["git", "commit", "-m", message])
+        return True
+    print("  No changes to commit.")
+    return False
+
 
 def download_link(url):
     is_facebook = "facebook.com" in url or "fb.watch" in url
@@ -30,20 +57,21 @@ def download_link(url):
     ]
 
     if is_facebook:
-        print(f"  [Facebook] Using Safari cookies...")
+        print("  [Facebook] Using Safari cookies...")
         cmd = base_cmd + ["--cookies-from-browser", "safari", url]
     else:
         cmd = base_cmd + [url]
 
-    result = run(cmd)
+    result = run(cmd, check=False)
     ok = result.returncode == 0
 
     if not ok and not is_facebook:
-        print(f"  Retrying with Safari cookies...")
-        result = run(base_cmd + ["--cookies-from-browser", "safari", url])
+        print("  Retrying with Safari cookies...")
+        result = run(base_cmd + ["--cookies-from-browser", "safari", url], check=False)
         ok = result.returncode == 0
 
     return ok
+
 
 def main():
     if not NEW_LINKS_FILE.exists():
@@ -55,7 +83,13 @@ def main():
         print("new_links.txt is empty. Nothing to do.")
         sys.exit(0)
 
-    # Check we're on master
+    # Require a clean working tree before we start, except for the files we are about to regenerate.
+    dirty = run(["git", "status", "--porcelain"], capture=True, check=False).stdout.strip()
+    if dirty:
+        print("Your git working tree is not clean. Commit or stash your existing changes first, then rerun.")
+        print(dirty)
+        sys.exit(1)
+
     result = run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True)
     current_branch = result.stdout.strip()
 
@@ -68,7 +102,6 @@ def main():
             failed.append(url)
             print(f"  FAILED: {url}")
 
-    # Clear new_links.txt so failed links don't pile up on next run
     NEW_LINKS_FILE.write_text("")
 
     if failed:
@@ -82,35 +115,42 @@ def main():
     print("\nStep 3: Generating HTML catalogue...")
     run(["python3", "csv_to_html.py"])
 
-    # Save updated files to master first
-    print(f"\nStep 4: Saving data to master branch...")
-    run(["git", "add", "raw/", "records.json", "records_summary.csv", "records_summary.html"])
-    run(["git", "commit", "-m", "Add new videos to catalogue"])
-    run(["git", "push", "-u", "origin", current_branch])
+    print("\nStep 4: Saving data to current branch...")
+    changed_current = commit_if_needed(
+        "Add new videos to catalogue",
+        ["raw/", "records.json", "records_summary.csv", "records_summary.html"],
+    )
+    if changed_current:
+        run(["git", "push", "-u", "origin", current_branch])
 
-    # Now push the deployable files to the claude branch (no raw/ folder)
-    print(f"\nStep 5: Pushing to deploy branch for Netlify...")
+    print("\nStep 5: Pushing deployable files to Netlify branch...")
     run(["git", "fetch", "origin", DEPLOY_BRANCH])
-    # Stash any uncommitted changes so we can switch branches
-    run(["git", "stash"])
-    # Create local branch if it doesn't exist yet
-    check = run(["git", "show-ref", "--verify", f"refs/heads/{DEPLOY_BRANCH}"], capture=True)
+
+    # Switch cleanly and force local deploy branch to match remote before copying generated files in.
+    check = run(["git", "show-ref", "--verify", f"refs/heads/{DEPLOY_BRANCH}"], capture=True, check=False)
     if check.returncode != 0:
         run(["git", "checkout", "-b", DEPLOY_BRANCH, f"origin/{DEPLOY_BRANCH}"])
     else:
         run(["git", "checkout", DEPLOY_BRANCH])
-        run(["git", "pull", "origin", DEPLOY_BRANCH])
-    run(["git", "checkout", current_branch, "--",
-         "records.json", "records_summary.csv", "records_summary.html"])
-    run(["git", "add", "records.json", "records_summary.csv", "records_summary.html"])
-    run(["git", "commit", "-m", "Deploy updated catalogue"])
-    run(["git", "push", "-u", "origin", DEPLOY_BRANCH])
-    run(["git", "checkout", current_branch])
-    # Restore any stashed changes
-    run(["git", "stash", "pop"])
+        run(["git", "reset", "--hard", f"origin/{DEPLOY_BRANCH}"])
 
-    print("\nAll done! Your catalogue will update on your phone in ~30 seconds.")
+    run([
+        "git", "checkout", current_branch, "--",
+        "records.json", "records_summary.csv", "records_summary.html"
+    ])
+
+    changed_deploy = commit_if_needed(
+        "Deploy updated catalogue",
+        ["records.json", "records_summary.csv", "records_summary.html"],
+    )
+    if changed_deploy:
+        run(["git", "push", "-u", "origin", DEPLOY_BRANCH])
+
+    run(["git", "checkout", current_branch])
+
+    print("\nAll done. Your catalogue should update shortly.")
     print("Open: https://video-links-project.netlify.app/records_summary.html")
+
 
 if __name__ == "__main__":
     main()
