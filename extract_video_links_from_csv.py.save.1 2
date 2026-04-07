@@ -1,0 +1,49 @@
+import csv
+import re
+from pathlib import Path
+
+# Change this if your file name is slightly different
+input_file = Path("apple_messages.csv")
+
+# Try alternate capitalization if needed
+if not input_file.exists():
+    input_file = Path("Apple messages.CSV")
+
+output_csv = Path("video_links.csv")
+output_txt = Path("links.txt")
+
+url_pattern = re.compile(r'https?://[^\s<>"\']+')
+wanted_domains = ("instagram.com", "facebook.com", "fb.watch")
+
+seen = set()
+rows_out = []
+
+with input_file.open("r", encoding="utf-8", errors="ignore", newline="") as f:
+    reader = csv.reader(f)
+    for row_num, row in enumerate(reader, start=1):
+        for cell in row:
+            if not cell:
+                continue
+            for match in url_pattern.findall(cell):
+                clean = match.rstrip(').,!?]>";\'')
+                low = clean.lower()
+                if any(domain in low for domain in wanted_domains):
+                    if clean not in seen:
+                        seen.add(clean)
+                        rows_out.append([row_num, clean])
+
+with output_csv.open("w", encoding="utf-8", newline="") as f:
+    writer = csv.writer(f)
+    writer.writerow(["row_number", "url"])
+    writer.writerows(rows_out)
+
+with output_txt.open("w", encoding="utf-8") as f:
+    for _, url in rows_out:
+        f.write(url + "\n")
+
+print(f"Done. Found {len(rows_out)} unique video links.")
+print(f"Created: {output_csv}")
+print(f"Created: {output_txt}")
+
+
+python3 extract_video_links_from_csv.py
