@@ -1,12 +1,18 @@
 """
 Run this on your Mac to add new videos and update the catalogue.
 Usage: python3 update_catalogue.py
+
+Changes from earlier versions:
+- commits raw/ safely even if it was previously gitignored
+- writes failed downloads to failed_links.txt instead of silently losing them
+- leaves new_links.txt empty after a run so the queue reflects only fresh detections
 """
 import subprocess
 import sys
 from pathlib import Path
 
 NEW_LINKS_FILE = Path("new_links.txt")
+FAILED_LINKS_FILE = Path("failed_links.txt")
 RAW_DIR = Path("raw")
 DEPLOY_BRANCH = "claude/video-catalogue-v1-ZJvHx"
 
@@ -29,6 +35,7 @@ def run(cmd, capture=False, check=True, **kwargs):
     return result
 
 
+
 def tracked_changes_excluding(paths_to_ignore=None):
     paths_to_ignore = set(paths_to_ignore or [])
     result = run(["git", "status", "--porcelain", "--untracked-files=no"], capture=True, check=False)
@@ -43,12 +50,14 @@ def tracked_changes_excluding(paths_to_ignore=None):
     return bad
 
 
+
 def has_changes(paths=None):
     cmd = ["git", "status", "--porcelain"]
     if paths:
         cmd.extend(paths)
     result = run(cmd, capture=True, check=False)
     return bool(result.stdout.strip())
+
 
 
 def commit_if_needed(message, add_cmds, watch_paths):
@@ -59,6 +68,7 @@ def commit_if_needed(message, add_cmds, watch_paths):
         return True
     print("  No changes to commit.")
     return False
+
 
 
 def download_link(url):
@@ -91,16 +101,18 @@ def download_link(url):
     return ok
 
 
+
 def ensure_raw_not_ignored():
-    gi = Path('.gitignore')
+    gi = Path(".gitignore")
     if not gi.exists():
         return
-    text = gi.read_text(encoding='utf-8', errors='ignore')
+    text = gi.read_text(encoding="utf-8", errors="ignore")
     lines = text.splitlines()
-    cleaned = [line for line in lines if line.strip() != 'raw/']
+    cleaned = [line for line in lines if line.strip() != "raw/"]
     if cleaned != lines:
-        gi.write_text('\n'.join(cleaned).rstrip() + ('\n' if cleaned else ''), encoding='utf-8')
-        print('  Removed raw/ from .gitignore so new thumbnails and metadata can be committed.')
+        gi.write_text("\n".join(cleaned).rstrip() + ("\n" if cleaned else ""), encoding="utf-8")
+        print("  Removed raw/ from .gitignore so new thumbnails and metadata can be committed.")
+
 
 
 def main():
@@ -108,14 +120,14 @@ def main():
         print("No new_links.txt found. Run check_new_links.py first.")
         sys.exit(1)
 
-    links = [l.strip() for l in NEW_LINKS_FILE.read_text().splitlines() if l.strip()]
+    links = [l.strip() for l in NEW_LINKS_FILE.read_text(encoding="utf-8").splitlines() if l.strip()]
     if not links:
         print("new_links.txt is empty. Nothing to do.")
         sys.exit(0)
 
-    dirty = tracked_changes_excluding({str(NEW_LINKS_FILE)})
+    dirty = tracked_changes_excluding({str(NEW_LINKS_FILE), str(FAILED_LINKS_FILE)})
     if dirty:
-        print("Your git working tree has tracked changes besides new_links.txt. Commit or stash them first, then rerun.")
+        print("Your git working tree has tracked changes besides new_links.txt/failed_links.txt. Commit or stash them first, then rerun.")
         for line in dirty:
             print(line)
         sys.exit(1)
@@ -132,13 +144,14 @@ def main():
             failed.append(url)
             print(f"  FAILED: {url}")
 
-    NEW_LINKS_FILE.write_text("")
-    ensure_raw_not_ignored()
-
+    NEW_LINKS_FILE.write_text("", encoding="utf-8")
     if failed:
-        print(f"\n  {len(failed)} link(s) could not be downloaded (skipped):")
-        for u in failed:
-            print(f"    {u}")
+        FAILED_LINKS_FILE.write_text("\n".join(failed) + "\n", encoding="utf-8")
+        print(f"\nSaved {len(failed)} failed link(s) to {FAILED_LINKS_FILE.name}")
+    else:
+        FAILED_LINKS_FILE.write_text("", encoding="utf-8")
+
+    ensure_raw_not_ignored()
 
     print("\nStep 2: Building records from downloaded files...")
     run(["python3", "build_records.py"])
@@ -150,10 +163,10 @@ def main():
     changed_current = commit_if_needed(
         "Add new videos to catalogue",
         [
-            ["git", "add", ".gitignore", "new_links.txt", "records.json", "records_summary.csv", "records_summary.html"],
+            ["git", "add", ".gitignore", "new_links.txt", "failed_links.txt", "records.json", "records_summary.csv", "records_summary.html"],
             ["git", "add", "-f", "raw/"],
         ],
-        [".gitignore", "new_links.txt", "raw/", "records.json", "records_summary.csv", "records_summary.html"],
+        [".gitignore", "new_links.txt", "failed_links.txt", "raw/", "records.json", "records_summary.csv", "records_summary.html"],
     )
     if changed_current:
         run(["git", "push", "-u", "origin", current_branch])
@@ -185,6 +198,8 @@ def main():
 
     print("\nAll done. Your catalogue should update shortly.")
     print("Open: https://video-links-project.netlify.app/records_summary.html")
+    if failed:
+        print(f"Review failed links in {FAILED_LINKS_FILE.name}")
 
 
 if __name__ == "__main__":
