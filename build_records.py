@@ -100,6 +100,7 @@ for info_file in sorted(raw_dir.iterdir()):
     title = (info.get("title") or "").strip()
     uploader = (info.get("uploader") or info.get("channel") or "").strip()
     timestamp = info.get("timestamp") or ""
+    added_timestamp = int(info_file.stat().st_mtime)
 
     record = {
         "url": url,
@@ -111,7 +112,8 @@ for info_file in sorted(raw_dir.iterdir()):
         "transcript_source": transcript_source,
         "transcript_file": transcript_file,
         "uploader": uploader,
-        "timestamp": timestamp
+        "timestamp": timestamp,
+        "added_timestamp": added_timestamp
     }
 
     records.append(record)
@@ -130,6 +132,7 @@ with csv_out.open("w", newline="", encoding="utf-8") as f:
         "thumbnail_file",
         "uploader",
         "timestamp",
+        "added_timestamp",
         "transcript_source",
         "description_preview",
         "transcript_preview"
@@ -143,6 +146,7 @@ with csv_out.open("w", newline="", encoding="utf-8") as f:
             r["thumbnail_file"],
             r["uploader"],
             r["timestamp"],
+            r["added_timestamp"],
             r["transcript_source"],
             r["description"][:200],
             r["transcript"][:200]

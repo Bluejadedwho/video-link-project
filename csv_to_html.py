@@ -54,12 +54,17 @@ def main():
         reader = csv.DictReader(f)
         rows = list(reader)
 
-    # Sort newest first by timestamp
+    # Sort newest first by when the record was added locally.
+    # Fall back to platform timestamp for older rows that do not have the field yet.
     def sort_key(r):
-        try:
-            return int(float(r.get("timestamp", "") or 0))
-        except ValueError:
-            return 0
+        raw_added = (r.get("added_timestamp", "") or "").strip()
+        raw_posted = (r.get("timestamp", "") or "").strip()
+        for raw in (raw_added, raw_posted):
+            try:
+                return int(float(raw))
+            except ValueError:
+                continue
+        return 0
     rows.sort(key=sort_key, reverse=True)
 
     row_count = len(rows)
